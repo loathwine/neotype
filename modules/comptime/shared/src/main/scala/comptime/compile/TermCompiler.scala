@@ -75,11 +75,11 @@ private[comptime] object TermCompiler:
               case _ if canFold =>
                 MatchCompiler.compileMatch(Eval.run(scrutEval), cases, env, fold)(loop)
               case _ =>
-                val dispatch: Any => Any = scrutValue =>
-                  MatchCompiler.compileMatch(scrutValue, cases, env, fold)(loop) match
-                    case Right(eval) => Eval.run(eval)
+                Right(Eval.Defer { () =>
+                  MatchCompiler.compileMatch(Eval.run(scrutEval), cases, env, fold)(loop) match
+                    case Right(eval) => eval
                     case Left(err)   => ComptimeError.throwAs(err)
-                Right(Eval.DeferredMatch(scrutEval, dispatch))
+                })
           }
         case TermIR.Block(stats, expr) =>
           BlockCompiler.compileBlock(stats, expr, env, fold)(loop)
@@ -184,11 +184,11 @@ private[comptime] object TermCompiler:
           else
             // Defer the whole try until evaluation so pending side effects (e.g.
             // surrounding `var` writes) run before the body is observed.
-            val deferred: () => Any = () =>
+            Right(Eval.Defer { () =>
               evaluateTry() match
-                case Right(eval) => Eval.run(eval)
+                case Right(eval) => eval
                 case Left(err)   => ComptimeError.throwAs(err)
-            Right(Eval.Defer(deferred))
+            })
         case other => Left(ComptimeError.UnsupportedTerm(other.getClass.getSimpleName, other.toString))
 
     loop(term, env, fold)

@@ -33,7 +33,6 @@ private[comptime] object BlockCompiler:
               case Eval.ApplyByName1(l, r, _) => hasSideEffects(l) || hasSideEffects(r)
               case Eval.BuildList(elems, _)   => elems.exists(hasSideEffects)
               case Eval.If(c, t, f)           => hasSideEffects(c) || hasSideEffects(t) || hasSideEffects(f)
-              case Eval.DeferredMatch(_, _)   => true
               case Eval.Defer(_)              => true
 
             eval match
