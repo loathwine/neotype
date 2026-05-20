@@ -185,6 +185,50 @@ object VarSpec extends ZIOSpecDefault:
           )
         }
       ),
+      suite("var with try/catch")(
+        test("try expression sees latest var value") {
+          assertTrue(
+            comptime {
+              var x = 0
+              x = 42
+              try x
+              finally ()
+            } == 42
+          )
+        },
+        test("try-catch body reads latest var") {
+          assertTrue(
+            comptime {
+              var x = 0
+              x = 10
+              try x
+              catch case _: Throwable => -1
+            } == 10
+          )
+        },
+        test("finally writes to var observed after try") {
+          assertTrue(
+            comptime {
+              var seen = 0
+              try
+                val y = 1
+                y
+              finally seen = 100
+              seen
+            } == 100
+          )
+        },
+        test("var-dependent failure caught by try") {
+          assertTrue(
+            comptime {
+              var xs: List[Int] = List(1, 2, 3)
+              xs = Nil
+              try xs.head
+              catch case _: Throwable => -1
+            } == -1
+          )
+        }
+      ),
       suite("var in nested blocks")(
         test("inner block sees outer var") {
           assertTrue(

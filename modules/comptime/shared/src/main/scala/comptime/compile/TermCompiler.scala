@@ -66,17 +66,20 @@ private[comptime] object TermCompiler:
           }
         case TermIR.Match(scrutinee, cases) =>
           ctx.compileTerm(scrutinee).flatMap { scrutEval =>
-            if canFold then
-              val scrutValue = Eval.run(scrutEval)
-              MatchCompiler.compileMatch(scrutValue, cases, env, fold)(loop)
-            else
-              // Defer match dispatch until evaluation so that var writes in the
-              // surrounding block run before the scrutinee is observed.
-              val dispatch: Any => Any = scrutValue =>
-                MatchCompiler.compileMatch(scrutValue, cases, env, fold)(loop) match
-                  case Right(eval) => Eval.run(eval)
-                  case Left(err)   => throw new RuntimeException(ComptimeError.format(err))
-              Right(Eval.DeferredMatch(scrutEval, dispatch))
+            // canFold or an already-folded scrutinee: dispatch eagerly. Otherwise
+            // defer so that any pending side effects (e.g. surrounding `var`
+            // writes) run before the scrutinee is observed.
+            scrutEval match
+              case Eval.Value(scrutValue) =>
+                MatchCompiler.compileMatch(scrutValue, cases, env, fold)(loop)
+              case _ if canFold =>
+                MatchCompiler.compileMatch(Eval.run(scrutEval), cases, env, fold)(loop)
+              case _ =>
+                val dispatch: Any => Any = scrutValue =>
+                  MatchCompiler.compileMatch(scrutValue, cases, env, fold)(loop) match
+                    case Right(eval) => Eval.run(eval)
+                    case Left(err)   => ComptimeError.throwAs(err)
+                Right(Eval.DeferredMatch(scrutEval, dispatch))
           }
         case TermIR.Block(stats, expr) =>
           BlockCompiler.compileBlock(stats, expr, env, fold)(loop)
@@ -160,22 +163,32 @@ private[comptime] object TermCompiler:
                 // Catch body threw during compilation (e.g., explicit `throw e`)
                 withFinally(Left(toEvalException(compileThrow)))
 
-          // Try to compile and run the body
-          loop(expr, env, fold) match
-            case Right(bodyEval) =>
-              try
-                val result = Eval.run(bodyEval)
-                // Body succeeded - run finally with protection
-                withFinally(Right(Eval.Value(result)))
-              catch case e: Throwable => handleException(e)
-            case Left(ComptimeError.EvalException(exType, msg, _, _)) =>
-              // Exception during compilation - try to reconstruct and catch
-              if ComptimeDebug.enabled then ComptimeDebug.log(s"[try/catch] reconstructing: $exType")
-              reconstructException(exType, msg) match
-                case Some(e) => handleException(e)
-                case None    => withFinally(Left(ComptimeError.EvalException(exType, msg, None, None)))
-            case Left(other) =>
-              withFinally(Left(other))
+          def evaluateTry(): Either[ComptimeError, Eval] =
+            loop(expr, env, fold) match
+              case Right(bodyEval) =>
+                try
+                  val result = Eval.run(bodyEval)
+                  // Body succeeded - run finally with protection
+                  withFinally(Right(Eval.Value(result)))
+                catch case e: Throwable => handleException(e)
+              case Left(ComptimeError.EvalException(exType, msg, _, _)) =>
+                // Exception during compilation - try to reconstruct and catch
+                if ComptimeDebug.enabled then ComptimeDebug.log(s"[try/catch] reconstructing: $exType")
+                reconstructException(exType, msg) match
+                  case Some(e) => handleException(e)
+                  case None    => withFinally(Left(ComptimeError.EvalException(exType, msg, None, None)))
+              case Left(other) =>
+                withFinally(Left(other))
+
+          if canFold then evaluateTry()
+          else
+            // Defer the whole try until evaluation so pending side effects (e.g.
+            // surrounding `var` writes) run before the body is observed.
+            val deferred: () => Any = () =>
+              evaluateTry() match
+                case Right(eval) => Eval.run(eval)
+                case Left(err)   => ComptimeError.throwAs(err)
+            Right(Eval.Defer(deferred))
         case other => Left(ComptimeError.UnsupportedTerm(other.getClass.getSimpleName, other.toString))
 
     loop(term, env, fold)

@@ -13,3 +13,10 @@ package comptime
   * }}}
   */
 case class ComptimeAbort(message: String) extends Exception(message)
+
+/** Exception used by compile-time evaluation paths that can only propagate
+  * Throwables (e.g. inside Eval.run closures or PartialFunction methods). The
+  * wrapped [[ComptimeError]] is preserved so MacroEntry can format it without
+  * round-tripping through a string message.
+  */
+final case class ComptimeFailure(error: ComptimeError) extends Exception(ComptimeError.format(error))

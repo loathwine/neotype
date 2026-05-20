@@ -71,6 +71,14 @@ object ComptimeError:
     val body = formatBody(failure)
     s"\n$header\n$body\n$footer\n"
 
+  /** Throw a ComptimeError as a typed exception so it can flow through code
+    * paths that can only propagate Throwables (e.g. inside Eval.run closures).
+    * The underlying error is preserved so MacroEntry can format it without
+    * losing structure.
+    */
+  def throwAs(failure: ComptimeError): Nothing =
+    throw ComptimeFailure(failure)
+
   private def formatBody(failure: ComptimeError): String = failure match
     case UnsupportedCall(owner, method, details) =>
       val shortOwner = shortenOwner(owner)

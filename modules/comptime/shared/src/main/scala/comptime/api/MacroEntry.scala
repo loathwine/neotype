@@ -64,6 +64,8 @@ private[comptime] object MacroEntry:
       case e: ComptimeAbort =>
         val failure = ComptimeError.UserAbort(e.message, callSiteInfo)
         report.errorAndAbort(ComptimeError.format(failure))
+      case e: ComptimeFailure =>
+        report.errorAndAbort(ComptimeError.format(e.error))
       case e: Throwable =>
         val failure = ComptimeError.EvalException(e.getClass.getSimpleName, e.getMessage)
         report.errorAndAbort(ComptimeError.format(failure))

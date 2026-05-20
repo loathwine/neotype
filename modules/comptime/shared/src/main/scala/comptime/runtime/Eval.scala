@@ -21,11 +21,14 @@ object Eval:
   final case class WriteRef(ref: MutableRef, value: Eval) extends Eval
   // Marker for var bindings in environment - holds the MutableRef
   final case class VarBinding(ref: MutableRef) extends Eval
-  // A match deferred to evaluation time. The dispatch function is invoked
-  // with the scrutinee value and produces the case result (or throws).
-  // Used when the scrutinee may depend on side effects (e.g. surrounding `var` writes)
-  // that haven't run yet at compile time.
+  // A match whose dispatch is deferred to evaluation time. The scrutinee is
+  // run first, then the dispatch closure resolves the case and produces the
+  // result (or throws). Used whenever the scrutinee can't be folded at compile
+  // time — for example because it reads a `var` whose write hasn't run yet.
   final case class DeferredMatch(scrutinee: Eval, dispatch: Any => Any) extends Eval
+  // A thunk evaluated at run time. Used to defer compile-time work that would
+  // otherwise observe stale state (e.g. var reads before surrounding writes).
+  final case class Defer(thunk: () => Any) extends Eval
 
   def run(eval: Eval): Any =
     eval match
@@ -53,3 +56,5 @@ object Eval:
         ref.value
       case DeferredMatch(scrutinee, dispatch) =>
         dispatch(run(scrutinee))
+      case Defer(thunk) =>
+        thunk()
