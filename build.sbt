@@ -69,22 +69,22 @@ ThisBuild / githubWorkflowPublish := Seq(
 // Project Definitions //
 /////////////////////////
 
-lazy val jsoniterVersion       = "2.38.9"
+lazy val jsoniterVersion       = "2.38.12"
 lazy val circeVersion          = "0.14.15"
 lazy val tapirVersion          = "1.13.19"
-lazy val zioVersion            = "2.1.24"
+lazy val zioVersion            = "2.1.26"
 lazy val zioConfigVersion      = "4.0.7"
-lazy val zioSchemaVersion      = "1.8.3"
+lazy val zioSchemaVersion      = "1.8.5"
 lazy val zioJsonVersion        = "0.9.2"
-lazy val chimneyVersion        = "1.8.2"
+lazy val chimneyVersion        = "1.10.0"
 lazy val calibanVersion        = "3.1.0"
 lazy val doobieVersion         = "1.0.0-RC12"
 lazy val upickleVersion        = "4.4.3"
-lazy val cirisVersion          = "3.12.0"
+lazy val cirisVersion          = "3.14.1"
 lazy val zioInteropCatsVersion = "23.1.0.13"
 lazy val pureconfigVersion     = "0.17.10"
-lazy val scanamoVersion        = "6.0.0"
-lazy val tethysVersion         = "0.29.7"
+lazy val scanamoVersion        = "7.0.0"
+lazy val tethysVersion         = "0.29.8"
 lazy val catsVersion           = "2.13.0"
 
 val sharedSettings = Seq(
@@ -217,7 +217,7 @@ lazy val playJson = (crossProject(JSPlatform, JVMPlatform) in file("modules/neot
     name := "neotype-play-json",
     sharedSettings,
     libraryDependencies ++= Seq(
-      "org.playframework" %%% "play-json" % "3.1.0-M9"
+      "org.playframework" %%% "play-json" % "3.1.0-M10"
     )
   )
   .dependsOn(core % "compile->compile;test->test")
@@ -273,7 +273,7 @@ lazy val zioQuill = (project in file("modules/neotype-zio-quill"))
     sharedSettings,
     libraryDependencies ++= Seq(
       "io.getquill"   %% "quill-jdbc-zio" % "4.8.6",
-      "org.postgresql" % "postgresql"     % "42.7.10" % Test,
+      "org.postgresql" % "postgresql"     % "42.7.11" % Test,
       "com.h2database" % "h2"             % "2.4.240" % Test
     )
   )
