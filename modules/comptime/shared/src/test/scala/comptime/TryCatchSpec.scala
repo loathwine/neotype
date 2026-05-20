@@ -196,8 +196,7 @@ object TryCatchSpec extends ZIOSpecDefault:
               e.fold(
                 _ =>
                   try "never evaluated".toInt
-                  catch case _: Exception => -999,
-                identity
+                  catch case _: Exception => -999, identity
               )
             } == 1
           )

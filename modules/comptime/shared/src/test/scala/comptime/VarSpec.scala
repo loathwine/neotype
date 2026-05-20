@@ -148,6 +148,43 @@ object VarSpec extends ZIOSpecDefault:
           )
         }
       ),
+      suite("var with match")(
+        test("match scrutinee sees latest var value (#473)") {
+          assertTrue(
+            comptime {
+              var x = 1
+              x = 2
+              x match
+                case 1 => "one"
+                case 2 => "two"
+                case _ => "other"
+            } == "two"
+          )
+        },
+        test("match scrutinee with computed expression on var") {
+          assertTrue(
+            comptime {
+              var x = 1
+              x = 3
+              (x * 2) match
+                case 2 => "two"
+                case 6 => "six"
+                case _ => "other"
+            } == "six"
+          )
+        },
+        test("match on var in case body referencing var") {
+          assertTrue(
+            comptime {
+              var x = 10
+              x = 20
+              x match
+                case n if n > 15 => n + 1
+                case _           => 0
+            } == 21
+          )
+        }
+      ),
       suite("var in nested blocks")(
         test("inner block sees outer var") {
           assertTrue(

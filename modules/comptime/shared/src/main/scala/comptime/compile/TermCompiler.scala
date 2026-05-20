@@ -66,8 +66,17 @@ private[comptime] object TermCompiler:
           }
         case TermIR.Match(scrutinee, cases) =>
           ctx.compileTerm(scrutinee).flatMap { scrutEval =>
-            val scrutValue = Eval.run(scrutEval)
-            MatchCompiler.compileMatch(scrutValue, cases, env, fold)(loop)
+            if canFold then
+              val scrutValue = Eval.run(scrutEval)
+              MatchCompiler.compileMatch(scrutValue, cases, env, fold)(loop)
+            else
+              // Defer match dispatch until evaluation so that var writes in the
+              // surrounding block run before the scrutinee is observed.
+              val dispatch: Any => Any = scrutValue =>
+                MatchCompiler.compileMatch(scrutValue, cases, env, fold)(loop) match
+                  case Right(eval) => Eval.run(eval)
+                  case Left(err)   => throw new RuntimeException(ComptimeError.format(err))
+              Right(Eval.DeferredMatch(scrutEval, dispatch))
           }
         case TermIR.Block(stats, expr) =>
           BlockCompiler.compileBlock(stats, expr, env, fold)(loop)

@@ -145,6 +145,24 @@ object PatternMatchingSpec extends ZIOSpecDefault:
         case VarBox(a: Int, b: Int, rest*) => a + b + rest.size
         case _                             => 0
     } -> 5,
+
+    // #468: lambda whose body is a match on a computed scrutinee
+    comptime {
+      val f: Int => String = (x: Int) =>
+        (x + 1) match
+          case 2 => "two"
+          case 3 => "three"
+          case _ => "other"
+      (f(1), f(2), f(3))
+    } -> ("two", "three", "other"),
+    comptime {
+      List(1, 2, 3).map { x =>
+        (x * 10) match
+          case 10 => "ten"
+          case 20 => "twenty"
+          case _  => "other"
+      }
+    } -> List("ten", "twenty", "other"),
     comptime {
       val x: Any = VarBox(1, 2, 3, 4)
       x match

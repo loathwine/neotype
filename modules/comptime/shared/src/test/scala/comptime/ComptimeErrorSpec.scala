@@ -112,6 +112,30 @@ object ComptimeErrorSpec extends ZIOSpecDefault:
           )
         }
       ),
+      suite("guard errors surface (#466)")(
+        test("collect with erroring guard reports the error") {
+          val errors = typeCheckErrors("""
+            comptime {
+              List(0, 1, 2).collect { case n if 10 / n == 10 => n }
+            }
+          """)
+          assertTrue(
+            errors.nonEmpty,
+            errors.exists(e => e.message.contains("ArithmeticException") || e.message.contains("by zero"))
+          )
+        },
+        test("filter with erroring guard reports the error") {
+          val errors = typeCheckErrors("""
+            comptime {
+              List(0, 1, 2).filter { case n if 10 / n == 10 => true }
+            }
+          """)
+          assertTrue(
+            errors.nonEmpty,
+            errors.exists(e => e.message.contains("ArithmeticException") || e.message.contains("by zero"))
+          )
+        }
+      ),
       suite("error in nested contexts")(
         test("error in nested block") {
           val errors = typeCheckErrors("""
