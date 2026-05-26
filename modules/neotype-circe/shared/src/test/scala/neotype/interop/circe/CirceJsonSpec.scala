@@ -5,6 +5,7 @@ import io.circe.syntax.*
 import neotype.interop.circe.given
 import neotype.test.*
 import neotype.test.definitions.*
+import zio.test.*
 
 // Circe doesn't have a unified Codec type that's commonly used,
 // so we create a stub combining Decoder and Encoder
@@ -62,3 +63,24 @@ object CirceJsonSpec extends JsonLibrarySpec[CirceCodec]("Circe", CirceLibrary):
 
   override protected def listHolderCodec: Option[CirceCodec[ListHolder]] =
     Some(summon[CirceCodec[ListHolder]])
+
+  override protected def additionalSuites: List[Spec[Any, Nothing]] = List(
+    suite("Map with newtype key")(
+      test("decode success") {
+        val json   = """{"hello":1,"world":2}"""
+        val parsed = parser.decode[Map[ValidatedNewtype, Int]](json)
+        assertTrue(
+          parsed == Right(Map(ValidatedNewtype("hello") -> 1, ValidatedNewtype("world") -> 2))
+        )
+      },
+      test("decode failure - empty key fails validation") {
+        val json   = """{"":1}"""
+        val parsed = parser.decode[Map[ValidatedNewtype, Int]](json)
+        assertTrue(parsed.isLeft)
+      },
+      test("encode") {
+        val json = Map(ValidatedNewtype("hello") -> 1, ValidatedNewtype("meaning") -> 42).asJson.noSpaces
+        assertTrue(json == """{"hello":1,"meaning":42}""")
+      }
+    )
+  )
